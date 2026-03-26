@@ -1,0 +1,1342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BODMAS Mission — Learn Order of Operations</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Exo+2:wght@300;400;600;700&family=Baloo+2:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+/* ─────────────────────────────────────────────
+   ROOT & RESET
+───────────────────────────────────────────── */
+:root {
+  --B: #00D4FF;   /* Brackets  – cyan */
+  --O: #FFD700;   /* Orders    – gold */
+  --D: #00FF88;   /* Division  – mint */
+  --M: #FF6B35;   /* Multiply  – orange */
+  --A: #A855F7;   /* Addition  – violet */
+  --S: #FF3D71;   /* Subtract  – rose */
+  --bg-deep: #02040A;
+  --bg-mid:  #060D1A;
+  --bg-card: rgba(8,20,45,0.85);
+  --glass:   rgba(255,255,255,0.04);
+  --border:  rgba(255,255,255,0.09);
+  --text:    #E8F4FF;
+  --muted:   #5B7FA6;
+  --white:   #ffffff;
+  --radius:  20px;
+  --glow-b: 0 0 30px rgba(0,212,255,0.35);
+  --glow-o: 0 0 30px rgba(255,215,0,0.35);
+  --glow-g: 0 0 30px rgba(0,255,136,0.35);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  font-family:'Exo 2',sans-serif;
+  background:var(--bg-deep);
+  color:var(--text);
+  min-height:100vh;
+  overflow-x:hidden;
+  cursor:default;
+}
+
+/* ─────────────────────────────────────────────
+   CANVAS STARFIELD
+───────────────────────────────────────────── */
+#universe{position:fixed;inset:0;z-index:0;pointer-events:none}
+
+/* ─────────────────────────────────────────────
+   NEBULA BLOBS
+───────────────────────────────────────────── */
+.nebula{position:fixed;border-radius:50%;filter:blur(80px);opacity:.18;pointer-events:none;z-index:0;animation:drift 20s ease-in-out infinite alternate}
+.n1{width:600px;height:400px;background:radial-gradient(circle,#0055ff,transparent);top:-100px;left:-200px;animation-delay:0s}
+.n2{width:500px;height:500px;background:radial-gradient(circle,#ff3d71,transparent);bottom:-150px;right:-150px;animation-delay:-8s}
+.n3{width:400px;height:300px;background:radial-gradient(circle,#00d4ff,transparent);top:40%;left:60%;animation-delay:-4s}
+@keyframes drift{from{transform:translate(0,0) scale(1)}to{transform:translate(40px,30px) scale(1.08)}}
+
+/* ─────────────────────────────────────────────
+   WRAPPER
+───────────────────────────────────────────── */
+#app{position:relative;z-index:1;min-height:100vh;display:flex;flex-direction:column}
+
+/* ─────────────────────────────────────────────
+   TOP HUD
+───────────────────────────────────────────── */
+.hud{
+  position:sticky;top:0;z-index:100;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:12px 24px;
+  background:rgba(2,4,10,0.8);
+  border-bottom:1px solid var(--border);
+  backdrop-filter:blur(20px);
+  gap:12px;
+  flex-wrap:wrap;
+}
+.hud-logo{
+  font-family:'Orbitron',monospace;
+  font-size:.85rem;font-weight:900;
+  letter-spacing:3px;color:var(--B);
+  text-shadow:0 0 20px var(--B);
+  white-space:nowrap;
+}
+.hud-stats{display:flex;gap:20px;align-items:center;flex-wrap:wrap}
+.hud-stat{text-align:center}
+.hud-stat-lbl{font-size:.6rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted)}
+.hud-stat-val{font-family:'Orbitron',monospace;font-size:1.1rem;font-weight:700;color:var(--white);line-height:1.1}
+.hud-stat-val.accent{color:var(--O);text-shadow:0 0 12px rgba(255,215,0,.5)}
+.hud-progress{flex:1;min-width:120px;max-width:220px}
+.hud-prog-lbl{font-size:.6rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
+.prog-track{height:6px;background:rgba(255,255,255,.08);border-radius:99px;overflow:hidden}
+.prog-fill{height:100%;border-radius:99px;background:linear-gradient(90deg,var(--B),var(--D));transition:width .6s cubic-bezier(.4,0,.2,1)}
+.lives{display:flex;gap:4px;align-items:center}
+.heart{font-size:1rem;transition:all .3s;filter:drop-shadow(0 0 4px #ff3d71)}
+.heart.lost{filter:grayscale(1) opacity(.3)}
+
+/* ─────────────────────────────────────────────
+   SCREENS
+───────────────────────────────────────────── */
+.screen{display:none;flex:1;flex-direction:column;animation:screenIn .5s cubic-bezier(.4,0,.2,1) both}
+.screen.active{display:flex}
+@keyframes screenIn{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}
+
+/* ─────────────────────────────────────────────
+   ░░ INTRO SCREEN ░░
+───────────────────────────────────────────── */
+.intro-wrap{
+  flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:40px 20px 60px;gap:0;
+}
+.mission-patch{
+  width:110px;height:110px;border-radius:50%;
+  background:conic-gradient(var(--B),var(--O),var(--D),var(--M),var(--A),var(--S),var(--B));
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 0 60px rgba(0,212,255,.4);
+  animation:spin-slow 12s linear infinite;
+  margin-bottom:28px;
+  position:relative;
+}
+.mission-patch::after{
+  content:'';position:absolute;inset:6px;border-radius:50%;
+  background:var(--bg-deep);
+}
+.patch-inner{position:relative;z-index:1;font-size:3rem;animation:counter-spin 12s linear infinite}
+@keyframes spin-slow{to{transform:rotate(360deg)}}
+@keyframes counter-spin{to{transform:rotate(-360deg)}}
+
+.intro-title{
+  font-family:'Orbitron',monospace;
+  font-size:clamp(2rem,7vw,3.8rem);
+  font-weight:900;letter-spacing:4px;
+  text-align:center;
+  background:linear-gradient(135deg,var(--B),var(--O),var(--D));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+  margin-bottom:8px;
+  animation:titleGlow 3s ease-in-out infinite alternate;
+}
+@keyframes titleGlow{from{filter:drop-shadow(0 0 10px rgba(0,212,255,.3))}to{filter:drop-shadow(0 0 30px rgba(0,212,255,.7))}}
+.intro-sub{font-size:1rem;color:var(--muted);text-align:center;margin-bottom:40px;letter-spacing:1px}
+
+/* Planet Chain */
+.planet-chain{display:flex;align-items:center;justify-content:center;gap:0;flex-wrap:wrap;margin-bottom:44px;width:100%;max-width:700px}
+.planet-wrap{display:flex;flex-direction:column;align-items:center;gap:10px}
+.planet{
+  width:72px;height:72px;border-radius:50%;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  font-size:.65rem;font-weight:700;letter-spacing:.5px;text-align:center;
+  border:2px solid rgba(255,255,255,.15);
+  position:relative;overflow:hidden;
+  transition:transform .3s,box-shadow .3s;cursor:pointer;
+  animation:float-planet var(--fp-dur,4s) ease-in-out infinite alternate;
+}
+.planet:hover{transform:scale(1.15)!important}
+.planet::before{content:'';position:absolute;inset:0;background:inherit;filter:blur(0);opacity:.6;border-radius:inherit}
+.planet-emoji{font-size:1.6rem;position:relative;z-index:1;display:block;margin-bottom:2px}
+.planet-letter{font-family:'Orbitron',monospace;font-weight:900;font-size:.9rem;position:relative;z-index:1;color:#fff}
+.planet-name{font-size:.72rem;color:var(--muted);font-weight:600;text-align:center;max-width:80px;line-height:1.3}
+.planet-desc{font-size:.62rem;color:rgba(255,255,255,.4);text-align:center;max-width:80px}
+@keyframes float-planet{from{transform:translateY(0)}to{transform:translateY(-8px)}}
+
+.chain-link{width:32px;height:2px;margin-top:-40px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.2),transparent)}
+@media(max-width:500px){.chain-link{width:12px}.planet{width:56px;height:56px}}
+
+.p-B{background:radial-gradient(circle at 35% 35%,#00eeff,#0055aa);box-shadow:0 0 30px rgba(0,212,255,.5);--fp-dur:3.5s}
+.p-O{background:radial-gradient(circle at 35% 35%,#ffe066,#cc8800);box-shadow:0 0 30px rgba(255,215,0,.5);--fp-dur:4.2s}
+.p-D{background:radial-gradient(circle at 35% 35%,#00ffaa,#007744);box-shadow:0 0 30px rgba(0,255,136,.5);--fp-dur:3.8s}
+.p-M{background:radial-gradient(circle at 35% 35%,#ff9060,#cc3300);box-shadow:0 0 30px rgba(255,107,53,.5);--fp-dur:4.5s}
+.p-A{background:radial-gradient(circle at 35% 35%,#cc88ff,#6600cc);box-shadow:0 0 30px rgba(168,85,247,.5);--fp-dur:3.2s}
+.p-S{background:radial-gradient(circle at 35% 35%,#ff6688,#aa0033);box-shadow:0 0 30px rgba(255,61,113,.5);--fp-dur:4.8s}
+
+/* ─────────────────────────────────────────────
+   BUTTONS
+───────────────────────────────────────────── */
+.btn{
+  display:inline-flex;align-items:center;gap:8px;
+  padding:14px 32px;border-radius:99px;border:none;cursor:pointer;
+  font-family:'Exo 2',sans-serif;font-size:1rem;font-weight:700;letter-spacing:1px;
+  transition:all .2s cubic-bezier(.4,0,.2,1);
+  position:relative;overflow:hidden;
+}
+.btn::after{content:'';position:absolute;inset:0;background:rgba(255,255,255,.08);opacity:0;transition:opacity .2s}
+.btn:hover::after{opacity:1}
+.btn:hover{transform:translateY(-3px);box-shadow:0 12px 32px rgba(0,0,0,.5)}
+.btn:active{transform:translateY(0)}
+.btn-launch{
+  background:linear-gradient(135deg,var(--B),#0066ff);
+  color:#fff;
+  box-shadow:0 0 40px rgba(0,212,255,.4);
+  font-size:1.1rem;padding:16px 48px;
+}
+.btn-secondary{background:var(--glass);color:var(--muted);border:1px solid var(--border)}
+.btn-check{
+  background:linear-gradient(135deg,var(--D),#00aa55);
+  color:#fff;box-shadow:0 0 20px rgba(0,255,136,.3);
+}
+.btn-next{
+  background:linear-gradient(135deg,var(--O),var(--M));
+  color:#fff;box-shadow:0 0 20px rgba(255,215,0,.3);
+}
+.btn-hint{background:rgba(255,215,0,.1);color:var(--O);border:1px solid rgba(255,215,0,.25)}
+
+/* ─────────────────────────────────────────────
+   ░░ GAME SCREEN ░░
+───────────────────────────────────────────── */
+.game-wrap{flex:1;display:flex;flex-direction:column;gap:16px;padding:20px 16px 40px;max-width:860px;margin:0 auto;width:100%}
+
+/* BODMAS Orbit Bar */
+.orbit-bar{
+  display:flex;align-items:center;justify-content:center;
+  gap:4px;padding:12px 16px;
+  background:var(--bg-card);border:1px solid var(--border);border-radius:14px;
+  backdrop-filter:blur(20px);flex-wrap:wrap;
+}
+.orbit-step{
+  display:flex;align-items:center;gap:6px;padding:6px 14px;border-radius:99px;
+  font-size:.78rem;font-weight:700;letter-spacing:.5px;
+  border:1px solid transparent;transition:all .3s;opacity:.45;
+  cursor:default;
+}
+.orbit-step.active-op{opacity:1;transform:scale(1.08)}
+.orbit-step .pri{font-family:'Orbitron',monospace;font-size:.65rem;opacity:.7}
+.os-B{border-color:rgba(0,212,255,.3);color:var(--B);background:rgba(0,212,255,.08)}
+.os-O{border-color:rgba(255,215,0,.3);color:var(--O);background:rgba(255,215,0,.08)}
+.os-D{border-color:rgba(0,255,136,.3);color:var(--D);background:rgba(0,255,136,.08)}
+.os-M{border-color:rgba(255,107,53,.3);color:var(--M);background:rgba(255,107,53,.08)}
+.os-A{border-color:rgba(168,85,247,.3);color:var(--A);background:rgba(168,85,247,.08)}
+.os-S{border-color:rgba(255,61,113,.3);color:var(--S);background:rgba(255,61,113,.08)}
+.orbit-arrow{color:var(--muted);font-size:.8rem}
+
+/* Mission Card */
+.mission-card{
+  background:var(--bg-card);
+  border:1px solid var(--border);
+  border-radius:24px;
+  padding:28px 24px;
+  backdrop-filter:blur(30px);
+  box-shadow:0 20px 60px rgba(0,0,0,.5);
+  position:relative;overflow:hidden;
+}
+.mission-card::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:3px;
+  background:var(--card-stripe,linear-gradient(90deg,var(--B),var(--D)));
+  border-radius:24px 24px 0 0;
+}
+.mission-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;flex-wrap:wrap;gap:8px}
+.mission-meta{display:flex;flex-direction:column;gap:4px}
+.mission-badge{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:4px 12px;border-radius:99px;font-size:.7rem;font-weight:700;letter-spacing:1px;
+}
+.mission-q{font-size:.75rem;color:var(--muted);font-weight:600;letter-spacing:1px;margin-top:4px}
+.mission-type-chip{padding:4px 12px;border-radius:99px;font-size:.7rem;font-weight:700;background:var(--glass);color:var(--muted);border:1px solid var(--border)}
+
+/* Equation Display */
+.eq-display{
+  font-family:'Orbitron',monospace;
+  font-size:clamp(1.6rem,5vw,2.8rem);
+  font-weight:700;
+  text-align:center;
+  letter-spacing:3px;
+  padding:20px 16px;
+  background:rgba(0,0,0,.3);
+  border-radius:16px;
+  border:1px solid var(--border);
+  margin-bottom:24px;
+  min-height:80px;
+  display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:6px;
+  line-height:1.4;
+}
+.eq-part{
+  display:inline-flex;align-items:center;justify-content:center;
+  padding:4px 6px;border-radius:8px;
+  transition:all .4s cubic-bezier(.4,0,.2,1);
+}
+.eq-part.highlight{
+  animation:eq-hl .6s ease both;
+  border-radius:10px;
+  padding:4px 10px;
+}
+@keyframes eq-hl{0%{transform:scale(1)}40%{transform:scale(1.25)}100%{transform:scale(1.1)}}
+.eq-part.solved{opacity:.45;text-decoration:line-through;text-decoration-color:rgba(255,255,255,.3)}
+.eq-bracket{color:var(--B);text-shadow:0 0 10px var(--B)}
+.eq-op-A{color:var(--A)}
+.eq-op-S{color:var(--S)}
+.eq-op-M{color:var(--M)}
+.eq-op-D{color:var(--D)}
+.eq-op-O{color:var(--O)}
+.eq-num{color:var(--white)}
+
+/* ── STEP PIPELINE (Bus-Jam style) ── */
+.pipeline{margin-bottom:24px}
+.pipeline-label{font-size:.65rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:12px}
+.pipeline-track{display:flex;align-items:flex-start;gap:0;overflow-x:auto;padding-bottom:8px;scrollbar-width:none}
+.pipeline-track::-webkit-scrollbar{display:none}
+.pipe-stop{display:flex;flex-direction:column;align-items:center;gap:6px;min-width:80px;position:relative}
+.pipe-node{
+  width:52px;height:52px;border-radius:50%;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  font-size:.55rem;font-weight:800;letter-spacing:.5px;
+  border:2px solid rgba(255,255,255,.12);
+  position:relative;z-index:1;
+  transition:all .5s cubic-bezier(.4,0,.2,1);
+  flex-shrink:0;
+}
+.pipe-node-emoji{font-size:1.1rem;line-height:1}
+.pipe-node-code{font-family:'Orbitron',monospace;font-size:.55rem;color:#fff;opacity:.9}
+.pipe-node.pending{opacity:.25;transform:scale(.85)}
+.pipe-node.active-node{
+  animation:node-pulse 1.2s ease-in-out infinite;
+  border-color:rgba(255,255,255,.5);
+}
+@keyframes node-pulse{0%,100%{box-shadow:0 0 0 0 rgba(255,255,255,.2)}50%{box-shadow:0 0 0 10px rgba(255,255,255,0)}}
+.pipe-node.done-node{opacity:.55;transform:scale(.8)}
+.pipe-calc{
+  font-size:.68rem;font-weight:700;color:var(--white);text-align:center;
+  max-width:80px;line-height:1.3;opacity:0;
+  transition:opacity .4s .2s;
+}
+.pipe-calc.show{opacity:1}
+.pipe-connector{
+  height:2px;flex:1;min-width:20px;margin-top:25px;
+  background:rgba(255,255,255,.08);
+  transition:background .5s;
+  position:relative;
+}
+.pipe-connector::after{
+  content:'›';position:absolute;right:-4px;top:-9px;
+  color:rgba(255,255,255,.2);font-size:.9rem;
+}
+.pipe-connector.done-conn{background:linear-gradient(90deg,var(--D),rgba(0,255,136,.3))}
+
+/* ── ANSWER ZONES ── */
+.answer-zone{margin-bottom:16px}
+
+/* MCQ Grid */
+.mcq-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.mcq-opt{
+  background:rgba(255,255,255,.04);
+  border:1.5px solid var(--border);
+  border-radius:16px;
+  padding:18px 16px;
+  font-family:'Orbitron',monospace;
+  font-size:1.5rem;font-weight:700;
+  color:var(--white);
+  cursor:pointer;text-align:center;
+  transition:all .2s cubic-bezier(.4,0,.2,1);
+  position:relative;overflow:hidden;
+}
+.mcq-opt::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,255,255,.06),transparent);opacity:0;transition:opacity .2s}
+.mcq-opt:hover:not(:disabled){
+  border-color:var(--B);
+  box-shadow:0 0 20px rgba(0,212,255,.25);
+  transform:translateY(-3px) scale(1.02);
+}
+.mcq-opt:hover::before{opacity:1}
+.mcq-opt.correct{border-color:var(--D)!important;background:rgba(0,255,136,.12)!important;color:var(--D)!important;box-shadow:0 0 30px rgba(0,255,136,.3)!important;animation:correct-pop .4s ease}
+.mcq-opt.wrong{border-color:var(--S)!important;background:rgba(255,61,113,.1)!important;color:var(--S)!important}
+@keyframes correct-pop{0%{transform:scale(1)}40%{transform:scale(1.08)}100%{transform:scale(1)}}
+
+/* Drag & Order */
+.drag-question{font-size:.85rem;color:var(--muted);font-weight:600;margin-bottom:12px;letter-spacing:.5px}
+.drop-zone{
+  display:flex;gap:10px;flex-wrap:wrap;
+  min-height:64px;padding:12px;
+  background:rgba(0,0,0,.25);
+  border:1.5px dashed rgba(255,255,255,.12);
+  border-radius:14px;
+  transition:border-color .2s;
+  margin-bottom:12px;
+  align-items:center;
+}
+.drop-zone.drag-over{border-color:var(--B);background:rgba(0,212,255,.05)}
+.drop-placeholder{
+  width:100%;text-align:center;font-size:.8rem;color:rgba(255,255,255,.18);
+  font-style:italic;letter-spacing:1px;
+  pointer-events:none;
+}
+.drag-chip{
+  padding:10px 18px;border-radius:10px;
+  font-family:'Exo 2',sans-serif;font-size:.92rem;font-weight:700;
+  cursor:grab;user-select:none;
+  border:1.5px solid rgba(255,255,255,.15);
+  color:#fff;
+  transition:transform .15s,box-shadow .15s,opacity .15s;
+  display:flex;align-items:center;gap:6px;
+}
+.drag-chip:hover{transform:scale(1.06);box-shadow:0 6px 20px rgba(0,0,0,.4)}
+.drag-chip.dragging{opacity:.3;cursor:grabbing}
+.drag-chip.used{opacity:.2;cursor:not-allowed;pointer-events:none}
+.source-chips{display:flex;gap:10px;flex-wrap:wrap;padding:4px 0}
+
+/* Fill-in */
+.fill-row{display:flex;align-items:center;justify-content:center;gap:14px;flex-wrap:wrap;padding:12px 0}
+.fill-eq{font-family:'Orbitron',monospace;font-size:1.4rem;color:var(--white);letter-spacing:2px}
+.fill-input{
+  width:96px;height:60px;
+  border-radius:14px;
+  border:2px solid rgba(255,215,0,.4);
+  background:rgba(255,215,0,.06);
+  color:var(--O);
+  font-family:'Orbitron',monospace;font-size:1.6rem;font-weight:700;
+  text-align:center;outline:none;
+  transition:all .2s;
+}
+.fill-input:focus{border-color:var(--O);box-shadow:0 0 20px rgba(255,215,0,.3)}
+.fill-input.correct-val{border-color:var(--D);color:var(--D);box-shadow:0 0 20px rgba(0,255,136,.3)}
+.fill-input.wrong-val{border-color:var(--S);color:var(--S);animation:shake .4s ease}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+
+/* SORT QUESTION */
+.sort-instruction{font-size:.85rem;color:var(--muted);margin-bottom:10px;font-weight:600}
+.sort-items{display:flex;flex-direction:column;gap:8px}
+.sort-item{
+  display:flex;align-items:center;gap:14px;
+  background:rgba(255,255,255,.04);border:1.5px solid var(--border);
+  border-radius:12px;padding:12px 16px;
+  cursor:grab;user-select:none;
+  transition:all .2s;
+}
+.sort-item:hover{border-color:rgba(255,255,255,.25);background:rgba(255,255,255,.07)}
+.sort-item.drag-src{opacity:.3}
+.sort-item.drag-target{border-color:var(--B);background:rgba(0,212,255,.08)}
+.sort-handle{color:var(--muted);font-size:1rem}
+.sort-rank{
+  width:28px;height:28px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-family:'Orbitron',monospace;font-size:.75rem;font-weight:700;color:#fff;flex-shrink:0;
+}
+.sort-text{flex:1;font-weight:600;font-size:.9rem}
+.sort-op-badge{padding:3px 10px;border-radius:99px;font-size:.7rem;font-weight:800;color:#fff;flex-shrink:0}
+
+/* Feedback */
+.feedback{
+  border-radius:14px;padding:14px 18px;
+  font-size:.9rem;font-weight:600;letter-spacing:.3px;
+  display:none;animation:feedIn .3s ease both;
+  margin-bottom:8px;line-height:1.5;
+}
+.feedback.show{display:block}
+@keyframes feedIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.feedback.ok{background:rgba(0,255,136,.1);border:1px solid rgba(0,255,136,.3);color:var(--D)}
+.feedback.err{background:rgba(255,61,113,.1);border:1px solid rgba(255,61,113,.3);color:var(--S)}
+.feedback.tip{background:rgba(255,215,0,.08);border:1px solid rgba(255,215,0,.25);color:var(--O)}
+
+.ctrl-row{display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap;margin-top:12px}
+
+/* ─────────────────────────────────────────────
+   VISUAL EXPLANATION PANEL
+───────────────────────────────────────────── */
+.explain-panel{
+  background:var(--bg-card);border:1px solid var(--border);
+  border-radius:20px;padding:20px;
+  backdrop-filter:blur(20px);
+  display:none;animation:feedIn .4s ease both;
+}
+.explain-panel.show{display:block}
+.explain-title{font-family:'Orbitron',monospace;font-size:.8rem;font-weight:700;letter-spacing:2px;color:var(--muted);margin-bottom:14px;text-transform:uppercase}
+.explain-steps{display:flex;flex-direction:column;gap:8px}
+.explain-step{
+  display:flex;align-items:center;gap:12px;
+  padding:10px 14px;border-radius:12px;
+  border-left:3px solid var(--step-col,#888);
+  background:rgba(255,255,255,.03);
+  animation:slideRight .4s ease both;
+  animation-delay:var(--step-delay,0s);
+}
+@keyframes slideRight{from{opacity:0;transform:translateX(-16px)}to{opacity:1;transform:translateX(0)}}
+.expl-icon{font-size:1.2rem;min-width:28px;text-align:center}
+.expl-body{flex:1}
+.expl-rule{font-size:.75rem;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:2px}
+.expl-calc{font-family:'Orbitron',monospace;font-size:1rem;font-weight:700;color:var(--white)}
+
+/* ─────────────────────────────────────────────
+   ░░ RESULT SCREEN ░░
+───────────────────────────────────────────── */
+.result-wrap{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 20px 60px;gap:0}
+.result-glow{
+  width:140px;height:140px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:4rem;
+  margin-bottom:28px;
+  position:relative;
+  animation:result-spin 0.6s cubic-bezier(.4,0,.2,1) both;
+}
+@keyframes result-spin{from{transform:scale(0) rotate(-180deg);opacity:0}to{transform:scale(1) rotate(0);opacity:1}}
+.result-ring{
+  position:absolute;inset:-8px;border-radius:50%;
+  border:3px solid var(--ring-col,var(--O));
+  animation:ring-pulse 2s ease-in-out infinite;
+  box-shadow:0 0 40px var(--ring-col,var(--O));
+}
+@keyframes ring-pulse{0%,100%{transform:scale(1);opacity:.8}50%{transform:scale(1.08);opacity:.4}}
+.result-title{font-family:'Orbitron',monospace;font-size:clamp(1.6rem,5vw,2.8rem);font-weight:900;text-align:center;margin-bottom:8px;background:linear-gradient(135deg,var(--O),var(--B));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.result-sub{color:var(--muted);text-align:center;margin-bottom:32px;font-size:1rem;max-width:440px}
+.stat-pods{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin-bottom:36px}
+.stat-pod{
+  background:var(--bg-card);border:1px solid var(--border);
+  border-radius:18px;padding:20px 28px;text-align:center;
+  backdrop-filter:blur(20px);min-width:100px;
+  animation:podIn .5s cubic-bezier(.4,0,.2,1) both;
+  animation-delay:var(--pod-delay,0s);
+}
+@keyframes podIn{from{opacity:0;transform:translateY(30px)}to{opacity:1;transform:translateY(0)}}
+.pod-val{font-family:'Orbitron',monospace;font-size:2rem;font-weight:900;color:var(--white);line-height:1}
+.pod-val.gold{color:var(--O);text-shadow:0 0 16px rgba(255,215,0,.5)}
+.pod-lbl{font-size:.65rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-top:4px}
+.stars-display{font-size:2.5rem;letter-spacing:10px;margin-bottom:24px;animation:starsIn 0.8s ease both;animation-delay:.3s;opacity:0}
+@keyframes starsIn{from{opacity:0;transform:scale(.5)}to{opacity:1;transform:scale(1)}}
+.result-btns{display:flex;gap:12px;flex-wrap:wrap;justify-content:center}
+
+/* ─────────────────────────────────────────────
+   PARTICLES (correct burst)
+───────────────────────────────────────────── */
+.particle{
+  position:fixed;border-radius:50%;pointer-events:none;z-index:9999;
+  animation:particle-fly var(--dur,1s) cubic-bezier(.4,0,.2,1) forwards;
+}
+@keyframes particle-fly{
+  0%{transform:translate(0,0) scale(1);opacity:1}
+  100%{transform:translate(var(--tx),var(--ty)) scale(0);opacity:0}
+}
+/* Confetti */
+.confetti{
+  position:fixed;pointer-events:none;z-index:9999;border-radius:2px;
+  animation:conf-fall var(--dur,2s) ease forwards;
+}
+@keyframes conf-fall{
+  0%{transform:translateY(-20px) rotate(0deg);opacity:1}
+  100%{transform:translateY(110vh) rotate(var(--rot,720deg));opacity:0}
+}
+
+/* ─────────────────────────────────────────────
+   RESPONSIVE
+───────────────────────────────────────────── */
+@media(max-width:480px){
+  .mcq-grid{grid-template-columns:1fr 1fr}
+  .hud{padding:10px 12px}
+  .planet{width:52px;height:52px}
+  .planet-emoji{font-size:1.2rem}
+  .mission-card{padding:20px 14px}
+  .eq-display{font-size:1.3rem}
+}
+</style>
+</head>
+<body>
+
+<!-- Space Canvas -->
+<canvas id="universe"></canvas>
+
+<!-- Nebula bg -->
+<div class="nebula n1"></div>
+<div class="nebula n2"></div>
+<div class="nebula n3"></div>
+
+<div id="app">
+  <!-- HUD -->
+  <div class="hud" id="hud">
+    <div class="hud-logo">⬡ BODMAS MISSION</div>
+    <div class="hud-stats">
+      <div class="hud-stat">
+        <div class="hud-stat-lbl">Score</div>
+        <div class="hud-stat-val accent" id="hudScore">0</div>
+      </div>
+      <div class="hud-progress">
+        <div class="hud-prog-lbl">Progress · Q <span id="hudQN">0</span>/<span id="hudQT">0</span></div>
+        <div class="prog-track"><div class="prog-fill" id="hudProg" style="width:0%"></div></div>
+      </div>
+      <div class="hud-stat">
+        <div class="hud-stat-lbl">Streak 🔥</div>
+        <div class="hud-stat-val" id="hudStreak">0</div>
+      </div>
+      <div class="lives" id="hudLives">
+        <span class="heart" id="h0">❤️</span>
+        <span class="heart" id="h1">❤️</span>
+        <span class="heart" id="h2">❤️</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ░░ INTRO SCREEN ░░ -->
+  <div class="screen active" id="scIntro">
+    <div class="intro-wrap">
+      <div class="mission-patch">
+        <div class="patch-inner">🚀</div>
+      </div>
+      <h1 class="intro-title">BODMAS MISSION</h1>
+      <p class="intro-sub">Navigate the Operation Galaxy · Solve equations in the correct order</p>
+
+      <!-- Planet Chain -->
+      <div class="planet-chain">
+        <div class="planet-wrap">
+          <div class="planet p-B" title="Brackets — solve first!">
+            <span class="planet-emoji">🔵</span>
+            <span class="planet-letter">B</span>
+          </div>
+          <div class="planet-name">Brackets</div>
+          <div class="planet-desc">( ) solved first</div>
+        </div>
+        <div class="chain-link"></div>
+        <div class="planet-wrap">
+          <div class="planet p-O">
+            <span class="planet-emoji">⭐</span>
+            <span class="planet-letter">O</span>
+          </div>
+          <div class="planet-name">Orders</div>
+          <div class="planet-desc">² and √ next</div>
+        </div>
+        <div class="chain-link"></div>
+        <div class="planet-wrap">
+          <div class="planet p-D">
+            <span class="planet-emoji">➗</span>
+            <span class="planet-letter">D</span>
+          </div>
+          <div class="planet-name">Division</div>
+          <div class="planet-desc">÷ left to right</div>
+        </div>
+        <div class="chain-link"></div>
+        <div class="planet-wrap">
+          <div class="planet p-M">
+            <span class="planet-emoji">✖️</span>
+            <span class="planet-letter">M</span>
+          </div>
+          <div class="planet-name">Multiply</div>
+          <div class="planet-desc">× same as ÷</div>
+        </div>
+        <div class="chain-link"></div>
+        <div class="planet-wrap">
+          <div class="planet p-A">
+            <span class="planet-emoji">➕</span>
+            <span class="planet-letter">A</span>
+          </div>
+          <div class="planet-name">Addition</div>
+          <div class="planet-desc">+ left to right</div>
+        </div>
+        <div class="chain-link"></div>
+        <div class="planet-wrap">
+          <div class="planet p-S">
+            <span class="planet-emoji">➖</span>
+            <span class="planet-letter">S</span>
+          </div>
+          <div class="planet-name">Subtract</div>
+          <div class="planet-desc">− same as +</div>
+        </div>
+      </div>
+
+      <button class="btn btn-launch" onclick="startGame()">🚀 &nbsp; Launch Mission</button>
+    </div>
+  </div>
+
+  <!-- ░░ GAME SCREEN ░░ -->
+  <div class="screen" id="scGame">
+    <div class="game-wrap">
+
+      <!-- Orbit reference bar -->
+      <div class="orbit-bar">
+        <div class="orbit-step os-B" id="os-B"><span>🔵</span><span class="pri">①</span> Brackets</div>
+        <div class="orbit-arrow">›</div>
+        <div class="orbit-step os-O" id="os-O"><span>⭐</span><span class="pri">②</span> Orders</div>
+        <div class="orbit-arrow">›</div>
+        <div class="orbit-step os-D" id="os-D"><span>➗</span><span class="pri">③</span> Div</div>
+        <div class="orbit-step os-M" id="os-M"><span>✖️</span><span class="pri">③</span> Mul</div>
+        <div class="orbit-arrow">›</div>
+        <div class="orbit-step os-A" id="os-A"><span>➕</span><span class="pri">④</span> Add</div>
+        <div class="orbit-step os-S" id="os-S"><span>➖</span><span class="pri">④</span> Sub</div>
+      </div>
+
+      <!-- Mission Question Card -->
+      <div class="mission-card" id="missionCard">
+        <div class="mission-header">
+          <div class="mission-meta">
+            <div class="mission-badge" id="levelBadge">Level 1</div>
+            <div class="mission-q" id="qLabel">QUESTION 1 OF 10</div>
+          </div>
+          <div class="mission-type-chip" id="typeBadge">MCQ</div>
+        </div>
+
+        <!-- Equation -->
+        <div class="eq-display" id="eqDisplay"></div>
+
+        <!-- Pipeline (Bus-Jam style) -->
+        <div class="pipeline">
+          <div class="pipeline-label">🚌 Operation Pipeline</div>
+          <div class="pipeline-track" id="pipeTrack"></div>
+        </div>
+
+        <!-- Answer Area -->
+        <div class="answer-zone" id="answerZone"></div>
+
+        <!-- Feedback -->
+        <div class="feedback" id="feedbackBox"></div>
+
+        <!-- Controls -->
+        <div class="ctrl-row">
+          <button class="btn btn-hint" id="hintBtn" onclick="doHint()">💡 Hint</button>
+          <button class="btn btn-check" id="checkBtn" onclick="doCheck()">Check ✓</button>
+          <button class="btn btn-next" id="nextBtn" onclick="doNext()" style="display:none">Next ›</button>
+        </div>
+      </div>
+
+      <!-- Explanation Panel -->
+      <div class="explain-panel" id="explainPanel">
+        <div class="explain-title">📡 Step-by-Step Solution</div>
+        <div class="explain-steps" id="explainSteps"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ░░ RESULT SCREEN ░░ -->
+  <div class="screen" id="scResult">
+    <div class="result-wrap">
+      <div class="result-glow" id="resultGlow">
+        <div class="result-ring" id="resultRing"></div>
+        <span id="resultEmoji">🏆</span>
+      </div>
+      <div class="stars-display" id="starsDisplay">⭐⭐⭐</div>
+      <h2 class="result-title" id="resultTitle">Mission Complete!</h2>
+      <p class="result-sub" id="resultSub">Outstanding work, cadet!</p>
+      <div class="stat-pods">
+        <div class="stat-pod" style="--pod-delay:.1s">
+          <div class="pod-val gold" id="rScore">0</div>
+          <div class="pod-lbl">Score</div>
+        </div>
+        <div class="stat-pod" style="--pod-delay:.2s">
+          <div class="pod-val" id="rCorrect">0/0</div>
+          <div class="pod-lbl">Correct</div>
+        </div>
+        <div class="stat-pod" style="--pod-delay:.3s">
+          <div class="pod-val" id="rStreak">0</div>
+          <div class="pod-lbl">Best Streak</div>
+        </div>
+        <div class="stat-pod" style="--pod-delay:.4s">
+          <div class="pod-val" id="rAccuracy">0%</div>
+          <div class="pod-lbl">Accuracy</div>
+        </div>
+      </div>
+      <div class="result-btns">
+        <button class="btn btn-launch" onclick="startGame()">🔄 &nbsp; Play Again</button>
+        <button class="btn btn-secondary" onclick="showScreen('scIntro')">📖 Review Rules</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ─────────────────────────────────────────────────────────
+     JAVASCRIPT ENGINE
+───────────────────────────────────────────────────────── -->
+<script>
+/* ════════════════════════════════════════
+   STARFIELD CANVAS
+════════════════════════════════════════ */
+(function(){
+  const cv=document.getElementById('universe');
+  const cx=cv.getContext('2d');
+  let W,H,stars=[];
+  function resize(){W=cv.width=innerWidth;H=cv.height=innerHeight;initStars()}
+  function initStars(){
+    stars=[];
+    for(let i=0;i<220;i++) stars.push({
+      x:Math.random()*W,y:Math.random()*H,
+      r:Math.random()*1.4+.2,
+      a:Math.random(),da:Math.random()*.012+.004,
+      s:Math.random()*.4+.08,// speed
+    });
+  }
+  function draw(){
+    cx.clearRect(0,0,W,H);
+    stars.forEach(s=>{
+      s.a+=s.da;
+      if(s.a>1||s.a<0) s.da*=-1;
+      s.y+=s.s;
+      if(s.y>H) s.y=0;
+      cx.beginPath();
+      cx.arc(s.x,s.y,s.r,0,Math.PI*2);
+      cx.fillStyle=`rgba(255,255,255,${s.a*0.8})`;
+      cx.fill();
+    });
+    requestAnimationFrame(draw);
+  }
+  resize();draw();
+  window.addEventListener('resize',resize);
+})();
+
+/* ════════════════════════════════════════
+   QUESTION BANK
+════════════════════════════════════════ */
+const QB=[
+  // ── LEVEL 1 ──
+  {id:1,lvl:1,type:'mcq',
+   expr:'2 + 3 × 4',
+   parts:[{t:'num',v:'2'},{t:'op-A',v:'+'},{t:'num',v:'3'},{t:'op-M',v:'×'},{t:'num',v:'4'}],
+   steps:[
+     {op:'M',icon:'✖️',rule:'Multiply before Add',calc:'3 × 4 = 12',col:'var(--M)'},
+     {op:'A',icon:'➕',rule:'Then Add',calc:'2 + 12 = 14',col:'var(--A)'},
+   ],
+   answer:14, opts:[20,14,11,10],
+   hint:'Which comes first — + or ×?',
+   activeOps:['M','A'],
+  },
+  {id:2,lvl:1,type:'fill',
+   expr:'(3 + 7) ÷ 2',
+   parts:[{t:'bracket',v:'('},{t:'num',v:'3'},{t:'op-A',v:'+'},{t:'num',v:'7'},{t:'bracket',v:')'},{t:'op-D',v:'÷'},{t:'num',v:'2'}],
+   steps:[
+     {op:'B',icon:'🔵',rule:'Brackets first',calc:'3 + 7 = 10',col:'var(--B)'},
+     {op:'D',icon:'➗',rule:'Then Divide',calc:'10 ÷ 2 = 5',col:'var(--D)'},
+   ],
+   answer:5, hint:'Solve what\'s inside ( ) first!',
+   activeOps:['B','D'],
+  },
+  {id:3,lvl:1,type:'sort',
+   expr:'8 − 2 + 5',
+   parts:[{t:'num',v:'8'},{t:'op-S',v:'−'},{t:'num',v:'2'},{t:'op-A',v:'+'},{t:'num',v:'5'}],
+   steps:[
+     {op:'S',icon:'➖',rule:'Left to right: subtract first',calc:'8 − 2 = 6',col:'var(--S)'},
+     {op:'A',icon:'➕',rule:'Then Add',calc:'6 + 5 = 11',col:'var(--A)'},
+   ],
+   answer:11,
+   sortItems:[
+     {label:'8 − 2',op:'S',col:'var(--S)',bg:'rgba(255,61,113,.25)'},
+     {label:'+ 5',op:'A',col:'var(--A)',bg:'rgba(168,85,247,.25)'},
+   ],
+   correctOrder:[0,1],
+   hint:'Addition & Subtraction are equal — go left to right!',
+   activeOps:['A','S'],
+  },
+  // ── LEVEL 2 ──
+  {id:4,lvl:2,type:'mcq',
+   expr:'3 + 4² − 2',
+   parts:[{t:'num',v:'3'},{t:'op-A',v:'+'},{t:'num',v:'4'},{t:'op-O',v:'²'},{t:'op-S',v:'−'},{t:'num',v:'2'}],
+   steps:[
+     {op:'O',icon:'⭐',rule:'Orders: 4²',calc:'4² = 16',col:'var(--O)'},
+     {op:'A',icon:'➕',rule:'Add: 3 + 16',calc:'3 + 16 = 19',col:'var(--A)'},
+     {op:'S',icon:'➖',rule:'Subtract: 19 − 2',calc:'19 − 2 = 17',col:'var(--S)'},
+   ],
+   answer:17, opts:[23,17,15,13],
+   hint:'Powers (Orders) come before + and −!',
+   activeOps:['O','A','S'],
+  },
+  {id:5,lvl:2,type:'fill',
+   expr:'(5 + 3) × 2 − 4',
+   parts:[{t:'bracket',v:'('},{t:'num',v:'5'},{t:'op-A',v:'+'},{t:'num',v:'3'},{t:'bracket',v:')'},{t:'op-M',v:'×'},{t:'num',v:'2'},{t:'op-S',v:'−'},{t:'num',v:'4'}],
+   steps:[
+     {op:'B',icon:'🔵',rule:'Brackets: 5+3',calc:'5 + 3 = 8',col:'var(--B)'},
+     {op:'M',icon:'✖️',rule:'Multiply: 8×2',calc:'8 × 2 = 16',col:'var(--M)'},
+     {op:'S',icon:'➖',rule:'Subtract: 16−4',calc:'16 − 4 = 12',col:'var(--S)'},
+   ],
+   answer:12, hint:'Brackets → Multiply → Subtract',
+   activeOps:['B','M','S'],
+  },
+  {id:6,lvl:2,type:'sort',
+   expr:'12 ÷ 4 × 3',
+   parts:[{t:'num',v:'12'},{t:'op-D',v:'÷'},{t:'num',v:'4'},{t:'op-M',v:'×'},{t:'num',v:'3'}],
+   steps:[
+     {op:'D',icon:'➗',rule:'Divide first (left to right)',calc:'12 ÷ 4 = 3',col:'var(--D)'},
+     {op:'M',icon:'✖️',rule:'Then Multiply',calc:'3 × 3 = 9',col:'var(--M)'},
+   ],
+   answer:9,
+   sortItems:[
+     {label:'12 ÷ 4',op:'D',col:'var(--D)',bg:'rgba(0,255,136,.2)'},
+     {label:'× 3',op:'M',col:'var(--M)',bg:'rgba(255,107,53,.2)'},
+   ],
+   correctOrder:[0,1],
+   hint:'Division and Multiplication are equal — go left to right!',
+   activeOps:['D','M'],
+  },
+  // ── LEVEL 3 ──
+  {id:7,lvl:3,type:'mcq',
+   expr:'2 × (3 + 4) − 3²',
+   parts:[{t:'num',v:'2'},{t:'op-M',v:'×'},{t:'bracket',v:'('},{t:'num',v:'3'},{t:'op-A',v:'+'},{t:'num',v:'4'},{t:'bracket',v:')'},{t:'op-S',v:'−'},{t:'num',v:'3'},{t:'op-O',v:'²'}],
+   steps:[
+     {op:'B',icon:'🔵',rule:'Brackets: 3+4',calc:'3 + 4 = 7',col:'var(--B)'},
+     {op:'O',icon:'⭐',rule:'Orders: 3²',calc:'3² = 9',col:'var(--O)'},
+     {op:'M',icon:'✖️',rule:'Multiply: 2×7',calc:'2 × 7 = 14',col:'var(--M)'},
+     {op:'S',icon:'➖',rule:'Subtract: 14−9',calc:'14 − 9 = 5',col:'var(--S)'},
+   ],
+   answer:5, opts:[5,23,19,7],
+   hint:'B → O → M before S!',
+   activeOps:['B','O','M','S'],
+  },
+  {id:8,lvl:3,type:'fill',
+   expr:'(10 − 2²) × 3 + 1',
+   parts:[{t:'bracket',v:'('},{t:'num',v:'10'},{t:'op-S',v:'−'},{t:'num',v:'2'},{t:'op-O',v:'²'},{t:'bracket',v:')'},{t:'op-M',v:'×'},{t:'num',v:'3'},{t:'op-A',v:'+'},{t:'num',v:'1'}],
+   steps:[
+     {op:'O',icon:'⭐',rule:'Orders inside bracket: 2²',calc:'2² = 4',col:'var(--O)'},
+     {op:'B',icon:'🔵',rule:'Finish bracket: 10−4',calc:'10 − 4 = 6',col:'var(--B)'},
+     {op:'M',icon:'✖️',rule:'Multiply: 6×3',calc:'6 × 3 = 18',col:'var(--M)'},
+     {op:'A',icon:'➕',rule:'Add: 18+1',calc:'18 + 1 = 19',col:'var(--A)'},
+   ],
+   answer:19, hint:'Orders come even before brackets are "closed"!',
+   activeOps:['O','B','M','A'],
+  },
+  {id:9,lvl:3,type:'sort',
+   expr:'5 + 2 × 3 − 4 ÷ 2',
+   parts:[{t:'num',v:'5'},{t:'op-A',v:'+'},{t:'num',v:'2'},{t:'op-M',v:'×'},{t:'num',v:'3'},{t:'op-S',v:'−'},{t:'num',v:'4'},{t:'op-D',v:'÷'},{t:'num',v:'2'}],
+   steps:[
+     {op:'M',icon:'✖️',rule:'Multiply: 2×3',calc:'2 × 3 = 6',col:'var(--M)'},
+     {op:'D',icon:'➗',rule:'Divide: 4÷2',calc:'4 ÷ 2 = 2',col:'var(--D)'},
+     {op:'A',icon:'➕',rule:'Add: 5+6',calc:'5 + 6 = 11',col:'var(--A)'},
+     {op:'S',icon:'➖',rule:'Subtract: 11−2',calc:'11 − 2 = 9',col:'var(--S)'},
+   ],
+   answer:9,
+   sortItems:[
+     {label:'2 × 3',op:'M',col:'var(--M)',bg:'rgba(255,107,53,.2)'},
+     {label:'4 ÷ 2',op:'D',col:'var(--D)',bg:'rgba(0,255,136,.2)'},
+     {label:'5 + 6',op:'A',col:'var(--A)',bg:'rgba(168,85,247,.2)'},
+     {label:'11 − 2',op:'S',col:'var(--S)',bg:'rgba(255,61,113,.2)'},
+   ],
+   correctOrder:[0,1,2,3],
+   hint:'Multiply and Divide first, then Add and Subtract!',
+   activeOps:['M','D','A','S'],
+  },
+  {id:10,lvl:3,type:'mcq',
+   expr:'(6 + 2)² ÷ 4 − 1',
+   parts:[{t:'bracket',v:'('},{t:'num',v:'6'},{t:'op-A',v:'+'},{t:'num',v:'2'},{t:'bracket',v:')'},{t:'op-O',v:'²'},{t:'op-D',v:'÷'},{t:'num',v:'4'},{t:'op-S',v:'−'},{t:'num',v:'1'}],
+   steps:[
+     {op:'B',icon:'🔵',rule:'Brackets: 6+2',calc:'6 + 2 = 8',col:'var(--B)'},
+     {op:'O',icon:'⭐',rule:'Orders: 8²',calc:'8² = 64',col:'var(--O)'},
+     {op:'D',icon:'➗',rule:'Divide: 64÷4',calc:'64 ÷ 4 = 16',col:'var(--D)'},
+     {op:'S',icon:'➖',rule:'Subtract: 16−1',calc:'16 − 1 = 15',col:'var(--S)'},
+   ],
+   answer:15, opts:[15,8,17,3],
+   hint:'Brackets → Orders → Division → Subtraction',
+   activeOps:['B','O','D','S'],
+  },
+];
+
+/* ════════════════════════════════════════
+   STATE
+════════════════════════════════════════ */
+let S={
+  qs:[],qi:0,
+  score:0,streak:0,bestStreak:0,lives:3,correct:0,
+  hintUsed:false,answered:false,
+  sortOrder:[],pipeStep:0,
+};
+
+/* ════════════════════════════════════════
+   SCREEN UTILS
+════════════════════════════════════════ */
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+function $(id){return document.getElementById(id)}
+
+/* ════════════════════════════════════════
+   HUD
+════════════════════════════════════════ */
+function updateHUD(){
+  $('hudScore').textContent=S.score;
+  $('hudStreak').textContent=S.streak;
+  $('hudQN').textContent=S.qi+1;
+  $('hudQT').textContent=S.qs.length;
+  $('hudProg').style.width=(S.qi/S.qs.length*100)+'%';
+  [0,1,2].forEach(i=>{
+    const h=$('h'+i);
+    h.classList.toggle('lost',i>=S.lives);
+  });
+}
+
+/* ════════════════════════════════════════
+   GAME START
+════════════════════════════════════════ */
+function startGame(){
+  S={qs:shuffle([...QB]),qi:0,score:0,streak:0,bestStreak:0,lives:3,correct:0,hintUsed:false,answered:false,sortOrder:[],pipeStep:0};
+  showScreen('scGame');
+  loadQ();
+}
+
+function shuffle(a){return a.sort(()=>Math.random()-.5)}
+
+/* ════════════════════════════════════════
+   LOAD QUESTION
+════════════════════════════════════════ */
+function loadQ(){
+  S.answered=false;S.hintUsed=false;S.pipeStep=0;S.sortOrder=[];
+  updateHUD();
+  hideFeedback();
+  $('explainPanel').classList.remove('show');
+
+  const q=S.qs[S.qi];
+
+  // Level badge
+  const lvlColors=['','linear-gradient(135deg,var(--B),#0044cc)','linear-gradient(135deg,var(--O),var(--M))','linear-gradient(135deg,var(--S),var(--A))'];
+  const lb=$('levelBadge');
+  lb.style.background=lvlColors[q.lvl]||lvlColors[1];
+  lb.style.color='#fff';lb.style.padding='4px 14px';lb.style.borderRadius='99px';lb.style.fontSize='.72rem';lb.style.fontWeight='700';lb.style.fontFamily="'Orbitron',monospace";lb.style.letterSpacing='1px';
+  lb.textContent='LEVEL '+q.lvl;
+
+  $('qLabel').textContent=`QUESTION ${S.qi+1} OF ${S.qs.length}`;
+  const typeNames={mcq:'Multiple Choice',fill:'Fill in the Blank',sort:'Arrange Order'};
+  $('typeBadge').textContent=typeNames[q.type]||q.type;
+
+  // Card top stripe
+  const stripes={1:'linear-gradient(90deg,var(--B),var(--D))',2:'linear-gradient(90deg,var(--O),var(--M))',3:'linear-gradient(90deg,var(--S),var(--A))'};
+  $('missionCard').style.setProperty('--card-stripe',stripes[q.lvl]);
+
+  // Orbit bar highlight
+  document.querySelectorAll('.orbit-step').forEach(el=>el.classList.remove('active-op'));
+  (q.activeOps||[]).forEach(op=>{ const el=$('os-'+op); if(el) el.classList.add('active-op'); });
+
+  renderEquation(q);
+  renderPipeline(q);
+  renderAnswer(q);
+
+  $('checkBtn').style.display='inline-flex';
+  $('nextBtn').style.display='none';
+  $('hintBtn').style.display='inline-flex';
+}
+
+/* ════════════════════════════════════════
+   EQUATION RENDER
+════════════════════════════════════════ */
+function renderEquation(q){
+  const d=$('eqDisplay');
+  d.innerHTML='';
+  q.parts.forEach(p=>{
+    const span=document.createElement('span');
+    span.className='eq-part '+p.t;
+    span.textContent=p.v;
+    if(p.t==='bracket') span.classList.add('eq-bracket');
+    d.appendChild(span);
+  });
+}
+
+/* ════════════════════════════════════════
+   PIPELINE RENDER (Bus-Jam)
+════════════════════════════════════════ */
+function renderPipeline(q){
+  const track=$('pipeTrack');
+  track.innerHTML='';
+  q.steps.forEach((step,i)=>{
+    if(i>0){
+      const conn=document.createElement('div');
+      conn.className='pipe-connector';
+      conn.id='pconn'+i;
+      track.appendChild(conn);
+    }
+    const stop=document.createElement('div');
+    stop.className='pipe-stop';
+    const col=step.col;
+    stop.innerHTML=`
+      <div class="pipe-node pending" id="pnode${i}" style="background:${col};box-shadow:0 0 16px ${col}44">
+        <div class="pipe-node-emoji">${step.icon}</div>
+        <div class="pipe-node-code">${step.op}</div>
+      </div>
+      <div class="pipe-calc" id="pcalc${i}">${step.calc}</div>`;
+    track.appendChild(stop);
+  });
+}
+
+function animatePipeline(q, upTo){
+  q.steps.forEach((_,i)=>{
+    const node=$('pnode'+i);
+    const calc=$('pcalc'+i);
+    const conn=$('pconn'+i);
+    if(!node) return;
+    if(i<upTo){
+      node.className='pipe-node done-node';
+      if(calc) calc.classList.add('show');
+      if(conn){conn.classList.add('done-conn')}
+    } else if(i===upTo){
+      node.className='pipe-node active-node';
+      if(calc) calc.classList.add('show');
+    } else {
+      node.className='pipe-node pending';
+      if(calc) calc.classList.remove('show');
+    }
+  });
+}
+
+/* ════════════════════════════════════════
+   ANSWER AREA RENDER
+════════════════════════════════════════ */
+function renderAnswer(q){
+  const az=$('answerZone');
+  az.innerHTML='';
+  if(q.type==='mcq') renderMCQ(q,az);
+  else if(q.type==='fill') renderFill(q,az);
+  else if(q.type==='sort') renderSort(q,az);
+}
+
+function renderMCQ(q,az){
+  const grid=document.createElement('div');
+  grid.className='mcq-grid';
+  shuffle([...q.opts]).forEach(opt=>{
+    const btn=document.createElement('button');
+    btn.className='mcq-opt';
+    btn.textContent=opt;
+    btn.onclick=()=>pickMCQ(opt,btn,q);
+    grid.appendChild(btn);
+  });
+  az.appendChild(grid);
+}
+
+function renderFill(q,az){
+  az.innerHTML=`
+    <div class="fill-row">
+      <div class="fill-eq" id="fillEqTxt">${q.expr} =</div>
+      <input class="fill-input" id="fillInput" type="number" placeholder="?" autocomplete="off"
+        onkeydown="if(event.key==='Enter')doCheck()">
+    </div>`;
+  setTimeout(()=>{ const fi=$('fillInput'); if(fi) fi.focus(); },100);
+}
+
+/* SORT (drag to reorder) */
+function renderSort(q,az){
+  S.sortOrder=[...q.correctOrder.map((_,i)=>i)]; // start shuffled
+  // shuffle display order
+  S.sortOrder=shuffle([...q.correctOrder.map((_,i)=>i)]);
+
+  az.innerHTML=`<p class="sort-instruction">🔀 Drag to arrange these operations in the correct order (1st → last):</p><div class="sort-items" id="sortItems"></div>`;
+  renderSortItems(q);
+}
+
+function renderSortItems(q){
+  const container=$('sortItems');
+  if(!container) return;
+  container.innerHTML='';
+  S.sortOrder.forEach((origIdx,pos)=>{
+    const item=q.sortItems[origIdx];
+    const div=document.createElement('div');
+    div.className='sort-item';
+    div.draggable=true;
+    div.dataset.pos=pos;
+    div.innerHTML=`
+      <span class="sort-handle">⣿</span>
+      <div class="sort-rank" style="background:${item.bg};color:${item.col}">${pos+1}</div>
+      <span class="sort-text">${item.label}</span>
+      <span class="sort-op-badge" style="background:${item.bg};color:${item.col}">${item.op}</span>`;
+    div.addEventListener('dragstart',e=>{ div.classList.add('drag-src'); e.dataTransfer.setData('text/plain',pos); });
+    div.addEventListener('dragend',()=>{ div.classList.remove('drag-src'); });
+    div.addEventListener('dragover',e=>{ e.preventDefault(); div.classList.add('drag-target'); });
+    div.addEventListener('dragleave',()=>div.classList.remove('drag-target'));
+    div.addEventListener('drop',e=>{
+      e.preventDefault(); div.classList.remove('drag-target');
+      const fromPos=parseInt(e.dataTransfer.getData('text/plain'));
+      const toPos=parseInt(div.dataset.pos);
+      if(fromPos===toPos) return;
+      const tmp=S.sortOrder[fromPos];
+      S.sortOrder[fromPos]=S.sortOrder[toPos];
+      S.sortOrder[toPos]=tmp;
+      renderSortItems(q);
+    });
+    container.appendChild(div);
+  });
+}
+
+/* ════════════════════════════════════════
+   MCQ PICK
+════════════════════════════════════════ */
+function pickMCQ(val,btn,q){
+  if(S.answered) return;
+  S.answered=true;
+  document.querySelectorAll('.mcq-opt').forEach(b=>b.disabled=true);
+  const ok=val===q.answer;
+  btn.classList.add(ok?'correct':'wrong');
+  if(!ok){
+    document.querySelectorAll('.mcq-opt').forEach(b=>{ if(Number(b.textContent)===q.answer) b.classList.add('correct'); });
+  }
+  handleResult(ok,q);
+}
+
+/* ════════════════════════════════════════
+   CHECK
+════════════════════════════════════════ */
+function doCheck(){
+  if(S.answered) return;
+  const q=S.qs[S.qi];
+  if(q.type==='mcq'){showFeedback('👆 Tap one of the answer boxes above!','tip');return;}
+  if(q.type==='fill'){
+    const fi=$('fillInput');
+    if(!fi) return;
+    const v=parseFloat(fi.value);
+    if(fi.value===''||isNaN(v)){showFeedback('Enter a number in the box!','tip');return;}
+    S.answered=true;
+    const ok=v===q.answer;
+    fi.classList.add(ok?'correct-val':'wrong-val');
+    handleResult(ok,q);
+    return;
+  }
+  if(q.type==='sort'){
+    S.answered=true;
+    const ok=S.sortOrder.join(',')===q.correctOrder.join(',');
+    handleResult(ok,q);
+  }
+}
+
+/* ════════════════════════════════════════
+   RESULT HANDLER
+════════════════════════════════════════ */
+function handleResult(ok,q){
+  if(ok){
+    const pts=(S.hintUsed?60:100)*q.lvl+(S.streak*10);
+    S.score+=pts;S.streak++;S.correct++;
+    if(S.streak>S.bestStreak) S.bestStreak=S.streak;
+    showFeedback(`✅ Correct! +${pts} pts · ${q.steps[q.steps.length-1].calc}`,'ok');
+    burstParticles();
+  } else {
+    S.lives--;S.streak=0;
+    showFeedback(`❌ Not quite! Answer: ${q.answer} · ${q.steps[q.steps.length-1].calc}`,'err');
+    shakeCard();
+  }
+  updateHUD();
+
+  // Animate pipeline fully
+  let step=0;
+  const runPipe=()=>{ if(step<=q.steps.length-1){ animatePipeline(q,step); step++; setTimeout(runPipe,550); } };
+  runPipe();
+
+  // Show explanation
+  setTimeout(()=>showExplain(q), (q.steps.length)*550+200);
+
+  $('checkBtn').style.display='none';
+  $('hintBtn').style.display='none';
+  $('nextBtn').style.display='inline-flex';
+
+  if(S.lives<=0) setTimeout(()=>{ showResults(); },1800);
+}
+
+/* ════════════════════════════════════════
+   EXPLANATION PANEL
+════════════════════════════════════════ */
+function showExplain(q){
+  const panel=$('explainPanel');
+  const stepsEl=$('explainSteps');
+  stepsEl.innerHTML='';
+  q.steps.forEach((step,i)=>{
+    const div=document.createElement('div');
+    div.className='explain-step';
+    div.style.setProperty('--step-col',step.col);
+    div.style.setProperty('--step-delay',(i*0.12)+'s');
+    div.style.borderColor=step.col;
+    div.innerHTML=`
+      <div class="expl-icon">${step.icon}</div>
+      <div class="expl-body">
+        <div class="expl-rule" style="color:${step.col}">${step.rule}</div>
+        <div class="expl-calc">${step.calc}</div>
+      </div>`;
+    stepsEl.appendChild(div);
+  });
+  panel.classList.add('show');
+}
+
+/* ════════════════════════════════════════
+   NEXT
+════════════════════════════════════════ */
+function doNext(){
+  if(S.lives<=0){showResults();return;}
+  S.qi++;
+  if(S.qi>=S.qs.length){showResults();return;}
+  loadQ();
+}
+
+/* ════════════════════════════════════════
+   HINT
+════════════════════════════════════════ */
+function doHint(){
+  const q=S.qs[S.qi];
+  S.hintUsed=true;
+  showFeedback('💡 '+q.hint,'tip');
+  animatePipeline(q,0);
+}
+
+/* ════════════════════════════════════════
+   FEEDBACK
+════════════════════════════════════════ */
+function showFeedback(msg,type){
+  const b=$('feedbackBox');
+  b.textContent=msg;b.className='feedback show '+type;
+}
+function hideFeedback(){$('feedbackBox').className='feedback'}
+
+/* ════════════════════════════════════════
+   CARD SHAKE
+════════════════════════════════════════ */
+function shakeCard(){
+  const c=$('missionCard');
+  c.style.animation='shake .4s ease';
+  c.addEventListener('animationend',()=>c.style.animation='',{once:true});
+}
+
+/* ════════════════════════════════════════
+   PARTICLES
+════════════════════════════════════════ */
+function burstParticles(){
+  const colors=['var(--B)','var(--O)','var(--D)','var(--M)','var(--A)','var(--S)'];
+  const card=$('missionCard').getBoundingClientRect();
+  const cx=card.left+card.width/2, cy=card.top+card.height*.3;
+  for(let i=0;i<28;i++){
+    const el=document.createElement('div');
+    el.className='particle';
+    const size=Math.random()*8+4;
+    const angle=Math.random()*Math.PI*2;
+    const dist=Math.random()*140+60;
+    el.style.cssText=`width:${size}px;height:${size}px;left:${cx}px;top:${cy}px;background:${colors[i%colors.length]};--tx:${Math.cos(angle)*dist}px;--ty:${Math.sin(angle)*dist}px;--dur:${Math.random()*.6+.5}s;animation-delay:${Math.random()*.1}s`;
+    document.body.appendChild(el);
+    setTimeout(()=>el.remove(),1200);
+  }
+}
+
+function launchConfetti(n=50){
+  const cols=['#00D4FF','#FFD700','#00FF88','#FF6B35','#A855F7','#FF3D71','#ffffff'];
+  for(let i=0;i<n;i++){
+    setTimeout(()=>{
+      const el=document.createElement('div');
+      el.className='confetti';
+      const w=Math.random()*10+4, h=Math.random()*6+3;
+      const rot=Math.random()*1440-720;
+      el.style.cssText=`width:${w}px;height:${h}px;left:${Math.random()*100}vw;top:-20px;background:${cols[i%cols.length]};--dur:${Math.random()*1.5+1.5}s;--rot:${rot}deg;border-radius:${Math.random()>0.5?'50%':'2px'}`;
+      document.body.appendChild(el);
+      setTimeout(()=>el.remove(),3000);
+    },i*35);
+  }
+}
+
+/* ════════════════════════════════════════
+   RESULTS
+════════════════════════════════════════ */
+function showResults(){
+  showScreen('scResult');
+  const pct=S.correct/S.qs.length;
+  const stars=pct>=.8?'⭐⭐⭐':pct>=.5?'⭐⭐':'⭐';
+  $('starsDisplay').textContent=stars;
+
+  let emoji,title,sub,ringCol;
+  if(pct>=.8){emoji='🏆';title='Mission Complete!';sub='You\'re a BODMAS Master, Cadet! Outstanding work!';ringCol='var(--O)';launchConfetti(70);}
+  else if(pct>=.5){emoji='🚀';title='Great Progress!';sub='You\'re getting the hang of BODMAS. Keep flying!';ringCol='var(--B)';}
+  else{emoji='🌌';title='Keep Exploring!';sub='Every astronaut needs practice. Try the mission again!';ringCol='var(--S)';}
+
+  $('resultEmoji').textContent=emoji;
+  $('resultTitle').textContent=title;
+  $('resultSub').textContent=sub;
+  $('resultRing').style.borderColor=ringCol;
+  $('resultRing').style.boxShadow=`0 0 40px ${ringCol}`;
+  $('rScore').textContent=S.score;
+  $('rCorrect').textContent=`${S.correct}/${S.qs.length}`;
+  $('rStreak').textContent=S.bestStreak;
+  $('rAccuracy').textContent=Math.round(pct*100)+'%';
+}
+</script>
+</body>
+</html>
