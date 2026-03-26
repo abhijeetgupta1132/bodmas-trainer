@@ -5,6 +5,11 @@
 
 ---
 
+## 🔗 Live Demo
+https://verdant-smakager-78f256.netlify.app/
+
+---
+
 ## 📸 Preview
 
 ```
@@ -237,6 +242,11 @@ This project was built as part of an internship assignment to demonstrate:
 - Production-quality UI/UX design from scratch
 
 The Bus-Jam mechanic inspiration was implemented as the **Operation Pipeline** — a horizontal chain of operation stations that light up in sequence, giving students a visual "journey" through the equation rather than just a static answer.
+
+---
+
+## 👨‍💻 Author
+Abhijeet Gupta
 
 ---
 
